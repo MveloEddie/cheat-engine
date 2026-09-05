@@ -1,0 +1,47 @@
+name: Build unchanged Cheat Engine (64-bit)
+
+on:
+  push:
+    branches:
+      - codex/windows-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Lazarus 2.2.2
+        uses: gcarreno/setup-lazarus@26c9265aa2e3a3cb1514e32c4ee6a30bd330a3fd
+        with:
+          lazarus-version: "2.2.2"
+
+      - name: Build 64-bit application
+        shell: pwsh
+        run: |
+          lazbuild -B "Cheat Engine/cheatengine.lpi" --cpu=x86_64 --build-mode="Release 64-Bit"
+          if (-not (Test-Path "Cheat Engine/bin/cheatengine-x86_64.exe")) {
+            throw "Expected executable was not produced."
+          }
+
+      - name: Stage application
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "dist/Cheat-Engine-64-bit" | Out-Null
+          Copy-Item -Recurse -Force "Cheat Engine/bin/*" "dist/Cheat-Engine-64-bit/"
+          Get-ChildItem "dist/Cheat-Engine-64-bit" -Recurse -Filter "*.dbg" | Remove-Item -Force
+
+      - name: Upload compiled application
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cheat-Engine-64-bit
+          path: dist/Cheat-Engine-64-bit
+          if-no-files-found: error
+          compression-level: 9
